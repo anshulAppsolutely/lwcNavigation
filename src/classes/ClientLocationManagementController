@@ -1,0 +1,237 @@
+/**
+ * Created by anshulagrawal on 2019-05-27.
+ */
+
+public with sharing class ClientLocationManagementController {
+
+    public ClientLocationManagementController(){
+
+    }
+
+    /**
+     * this method is used to fetch the client data based on location accessible to contact
+     *
+     * @param Client data
+     *
+     * @return
+     */
+    @AuraEnabled(cacheable=true)
+    public static Map<String, Object> getMyClients() {
+        System.debug('get my clients');
+
+        User loggedInUsr = [SELECT Id, ContactId, Contact.AccountId FROM User WHERE Id = : UserInfo.getUserId()];
+        system.debug('getContactId' + loggedInUsr.ContactId);
+        Map<Id, ClientDataWrapper> myClientLocationsAccountMap = new Map<Id, ClientDataWrapper>();
+        Map<String, Object> response = new Map<String, Object>();
+        Set<Id> contactLocations = new Set<Id>();
+        //loggedInUsr.ContactId = '0031j00000BYWVdAAP';
+        if(loggedInUsr.ContactId!=null) {
+            try {
+                for(Contact_Location_Relationship__c contactLocationsObj : [select id,
+                        Contact__r.Name, Location__r.Id,
+                        Location__r.Name, ContactAccountId__c
+                from Contact_Location_Relationship__c
+                where contact__c =: loggedInUsr.ContactId]){
+                    contactLocations.add(contactLocationsObj.Location__r.Id);
+                }
+                system.debug('contactLocations >>'+contactLocations);
+                if(contactLocations.size() > 0){
+                    for(Client_Location_Relationship__c myClientLocations : [select id, tolabel(Client_PA__r.Salutation),Client_PA__r.Record_Link__c, Client_PA__r.Name,
+                            Client_PA__r.Id,Client_PA__r.AccountNumber,Client_PA__r.PersonBirthdate,Client_PA__r.Phone, Location__r.Name
+                    FROM Client_Location_Relationship__c
+                    where Location__c IN : contactLocations]){
+
+                        ClientDataWrapper clientWrapper = new ClientDataWrapper(myClientLocations.Client_PA__r.AccountNumber,myClientLocations.Client_PA__r.Name,myClientLocations.Client_PA__r.Record_Link__c,myClientLocations.Client_PA__r.PersonBirthdate,myClientLocations.Client_PA__r.Phone,myClientLocations.Client_PA__r.Salutation);
+                        myClientLocationsAccountMap.put(myClientLocations.Client_PA__r.Id, clientWrapper);
+                    }
+                }
+                system.debug('myClientLocations >>'+myClientLocationsAccountMap.values());
+                response.put('values', myClientLocationsAccountMap.values());
+
+            } catch (Exception e) {
+                AuraHandledException auraException = new AuraHandledException(Label.Error);
+                auraException.setMessage(Label.Error);
+                throw auraException;
+            }
+        }
+        return response;
+    }
+
+    @AuraEnabled(Cacheable=true)
+    public static String fetchRecordTypeId(String recordTypeName) {
+        return [Select id, Name FROM RecordType WHERE  SObjectType = 'Account' and Name=:recordTypeName].Id;
+    }
+
+    /**
+     * this method is used to get the accessed sub locations
+     *
+     * @return
+     */
+    @AuraEnabled(cacheable=true)
+    public static Map<String, Object> getSubLocations(String parentLocation, String clientId) {
+        system.debug('parent id in sublocation >>>'+parentLocation);
+        Map<String, Object> response = new Map<String, Object>();
+        List<SubLocationWrapper> subLocationWrapperList = new List<SubLocationWrapper>();
+        User loggedInUsr = [SELECT Id, ContactId, Contact.AccountId, Contact.Account.Name FROM User WHERE Id = : UserInfo.getUserId()];
+        loggedInUsr.ContactId = '0031j00000BYWVdAAP';
+        if(loggedInUsr.ContactId!=null) {
+            try {
+                Id spaceRecordType = [SELECT Id FROM RecordType WHERE Name = 'Space' and SObjectType = 'Location__c'].Id;
+                Map<Id, Location__c> locationsMap = new Map<Id, Location__c>([select id, Name, Type_NL__c from Location__c
+                where Account__c ='0011j00000CRaWoAAL'
+                //Account__c =: loggedInUsr.Contact.AccountId
+                and Parent_Location__c =: parentLocation
+                and RecordTypeId =:spaceRecordType]);
+
+                system.debug('locationsMap >>'+locationsMap.keySet());
+
+                set<Id> locationIds = new Set<id>(locationsMap.keySet());
+
+                system.debug('client id >>'+clientId);
+
+                Map<Id, Client_Location_Relationship__c> existingClientLocation = new Map<Id, Client_Location_Relationship__c>();
+                for(Client_Location_Relationship__c clientLocation : [Select Id, Name, IsInactive__c,Location__c,EndDate__c
+                from Client_Location_Relationship__c Where Location__c in : locationIds and Client_PA__c =: clientId ]){
+                    if(!clientLocation.IsInactive__c){
+                        existingClientLocation.put(clientLocation.Location__c, clientLocation);
+                    }
+                }
+
+                system.debug('existingClientLocation >>'+existingClientLocation);
+
+                for (Location__c location : locationsMap.values()) {
+                    if(existingClientLocation.size() == 0 || (!existingClientLocation.containsKey(location.id))) {
+                        sublocationWrapperList.add(new SubLocationWrapper(location.id, location.Name + ' - ' + location.Type_NL__c));
+                    }
+                }
+                system.debug('subLocationWrapperList >>>'+subLocationWrapperList);
+                response.put('mySubLocations', subLocationWrapperList);
+            } catch (Exception e) {
+                system.debug('in getting logged in sub locations >>' + e.getMessage());
+                AuraHandledException auraException = new AuraHandledException(Label.Error);
+                auraException.setMessage(Label.Error);
+                throw auraException;
+            }
+        }
+        return response;
+    }
+
+    /**
+     * this method is used to get the accessed location of logged in User
+     *
+     * @return
+     */
+    @AuraEnabled(cacheable=true)
+    public static Map<String, Object> getMyLocations(String clientId) {
+        Map<String, Object> response = new Map<String, Object>();
+        User loggedInUsr = [SELECT Id, ContactId, Contact.AccountId, Contact.Account.Name FROM User WHERE Id = : UserInfo.getUserId()];
+        loggedInUsr.ContactId = '0031j00000BYWVdAAP';
+        if(loggedInUsr.ContactId!=null) {
+            try {
+                List<String> locationOptions = new List<String>();
+                List<String> mappedLocations = new List<String>();
+                Id LocationRecordType = [SELECT Id FROM RecordType WHERE Name = 'Location' and SObjectType = 'Location__c'].Id;
+
+                Map<Id, Client_Location_Relationship__c> existingClientLocation = new Map<Id, Client_Location_Relationship__c>();
+                for(Client_Location_Relationship__c clientLocation : [Select Id, Name, IsInactive__c,Location__c,EndDate__c
+                from Client_Location_Relationship__c Where Client_PA__c =: clientId ]){
+                    if(!clientLocation.IsInactive__c){
+                        existingClientLocation.put(clientLocation.Location__c, clientLocation);
+                    }
+                }
+
+
+                for (Contact_Location_Relationship__c contactLocationsObj : [
+                        select id,
+                                Contact__r.Name, Location__r.Id,
+                                Location__r.Name, ContactAccountId__c
+                        from Contact_Location_Relationship__c
+                        where contact__c = :loggedInUsr.ContactId and Location__r.RecordTypeId =:LocationRecordType
+                ]) {
+                    Boolean locationMapped = false;
+                    if (existingClientLocation.size() == 0 || !existingClientLocation.containsKey(contactLocationsObj.Location__r.Id)) locationMapped = true;
+
+                    LocationOptionWrapper wrapper = new LocationOptionWrapper(contactLocationsObj.Location__r.Name, contactLocationsObj.Location__r.Id);
+                    locationOptions.add(JSON.serialize(wrapper));
+
+                    if (locationMapped) {
+                        MappedLocationsWrapper mappedLoc = new MappedLocationsWrapper(contactLocationsObj.Location__r.Id, locationMapped);
+                        mappedLocations.add(JSON.serialize(mappedLoc));
+                    }
+                }
+                response.put('myLocations', '['+String.join(locationOptions, ',')+']');
+                response.put('myOrganization', loggedInUsr.Contact.Account.Name);
+                response.put('mappedLocations', '['+String.join(mappedLocations, ',')+']');
+                system.debug('my locations >>>'+response);
+            } catch (Exception e) {
+                system.debug('in getting logged in getting user locations >>' + e.getMessage());
+                AuraHandledException auraException = new AuraHandledException(Label.Error);
+                auraException.setMessage(Label.Error);
+                throw auraException;
+            }
+        }
+        return response;
+    }
+
+
+    public class ClientDataWrapper{
+
+        @AuraEnabled
+        public String accountNumber;
+        @AuraEnabled
+        public  String salutation;
+        @AuraEnabled
+        public  String accountName;
+        @AuraEnabled
+        public  String recordLink;
+        @AuraEnabled
+        public  Date dateOfBirth;
+        @AuraEnabled
+        public  String telephone;
+
+        public ClientDataWrapper(String accountNumber, String accountName, String recordLink, Date dateOfBirth, String telephone, String salutation){
+            this.accountNumber = accountNumber;
+            this.accountName = accountName;
+            this.recordLink = recordLink;
+            this.dateOfBirth = dateOfBirth;
+            this.telephone = telephone;
+            this.salutation = salutation;
+        }
+    }
+
+    public class SubLocationWrapper{
+
+        @AuraEnabled
+        public String locationId;
+        @AuraEnabled
+        public  String locationName;
+
+        public SubLocationWrapper(String locationId, String locationName){
+            this.locationId = locationId;
+            this.locationName = locationName;
+        }
+    }
+
+    public class LocationOptionWrapper{
+        String label;
+        String value;
+
+        public LocationOptionWrapper(String label, String value){
+            this.label = label;
+            this.value = value;
+        }
+    }
+
+    public class MappedLocationsWrapper{
+        @AuraEnabled
+        public String locationId;
+        @AuraEnabled
+        public Boolean locationMapped;
+
+        public MappedLocationsWrapper(String locationId, Boolean locationMapped){
+            this.locationId = locationId;
+            this.locationMapped = locationMapped;
+        }
+    }
+
+}
