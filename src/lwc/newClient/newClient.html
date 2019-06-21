@@ -1,0 +1,15 @@
+<template>
+    <lightning-record-edit-form object-api-name="Account" record-type-id={recordTypeId} onsuccess={handleSuccess} onsubmit={handleSubmit}>
+        <lightning-messages></lightning-messages>
+        <div class="slds-m-around_medium">
+            <lightning-input-field field-name='Name'></lightning-input-field>
+            <lightning-input-field field-name='Initials__pc'></lightning-input-field>
+            <lightning-input-field field-name='PersonBirthdate' onchange={handleBirthDateChange}></lightning-input-field>
+
+            <div class="slds-m-top_medium">
+                <lightning-button variant="brand" type="submit" name="save" label="Create New Client">
+                </lightning-button>
+            </div>
+        </div>
+    </lightning-record-edit-form>
+</template>
