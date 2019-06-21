@@ -211,6 +211,16 @@ export default class Mapnewclientlocations extends LightningElement {
 
         }else{
 
+            if(this.selectedRows.length == 0){
+                this.dispatchEvent(
+                    new ShowToastEvent({
+                        title: 'There are no spaces selected.',
+                        variant: 'success'
+                    }),
+                );
+                return;
+            }
+
             console.log('creating only sub location  '+this.selectedRows.length);
             const selectedRowsSize = this.selectedRows.length;
             const selectedRows1 = this.selectedRows;
