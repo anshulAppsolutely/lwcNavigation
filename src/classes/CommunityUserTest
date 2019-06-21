@@ -1,0 +1,52 @@
+@isTest
+private class CreateCommunityUserBatch_Test {
+    
+    @isTest
+    static void createCommunityUser(){
+        UserRole portalRole = new UserRole(DeveloperName = 'MyCustomRole', Name = 'My Role', PortalType='None' );  
+     	insert portalRole;  
+     	System.debug('portalRole is ' + portalRole);  
+     	Profile sysAdminProfile = [Select Id from Profile where name = 'System Administrator'];  
+     	User portalAccountOwner = new User(  
+             UserRoleId = portalRole.Id,  
+             ProfileId = sysAdminProfile.Id,  
+             Username = 'portalOwner' + System.currentTimeMillis() + '@test.com',  
+             Alias = 'Alias',  
+             Email='portal.owner@test.com',  
+             EmailEncodingKey='UTF-8',  
+             Firstname='Portal',  
+             Lastname='Owner',  
+             LanguageLocaleKey='en_US',  
+             LocaleSidKey='en_US',  
+             TimeZoneSidKey = 'America/Los_Angeles'  
+     	);  
+     	Database.insert(portalAccountOwner);
+        Account portalAccount;
+        User communityUser;
+        System.runAs ( portalAccountOwner ) {  
+           	//Create account
+           	RecordType personAccountRecordType =  [SELECT Id FROM RecordType WHERE Name = 'Person Account' and SObjectType = 'Account'];  
+           	portalAccount = new Account(  
+               	FirstName = 'TestFirst', 
+                LastName = 'TestLast',
+               	OwnerId = portalAccountOwner.Id,
+                Nieuwe_Mijnstadlander__c = true,
+                RecordType = personAccountRecordType,
+                PersonEmail  = 'portalAccount' + System.currentTimeMillis() + '@test.com' 
+           	);  
+       		Database.insert(portalAccount);  
+            system.debug('portalAccount in test'+portalAccount);
+        }
+        Test.startTest();
+        String accountId = portalAccount.Id;
+		String query = 'SELECT Id ,Owner.userRole.Name, (SELECT Id,Owner.userRole.Name,Name,FirstName,LastName,Email,AccountId FROM Contacts) '+
+            'FROM Account WHERE Id =\''+String.escapeSingleQuotes(accountId)+'\' AND IsPersonAccount=true AND Nieuwe_Mijnstadlander__c = true AND PersonContactId NOT IN (SELECT ContactId FROM User where isActive = true) order by InlogMijnStadlander__c desc';
+		Database.executeBatch(new CreateCommunityUserBatch(query), 20);
+        Test.stopTest();
+        
+        
+    }
+    
+    
+
+}
