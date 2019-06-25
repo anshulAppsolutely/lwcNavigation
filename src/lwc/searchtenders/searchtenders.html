@@ -1,0 +1,127 @@
+<!--
+ - Created by tejaswinidandi on 08/04/2019.
+ -->
+
+<!-- SearchTenders -->
+<template>
+
+    <lightning-card title={label.searchTenders} icon-name="standard:search">
+        <div class="slds-form">
+            <!--<div class="slds-grid slds-gutters slds-m-around&#45;&#45;medium">
+                <div class="slds-col">
+                    <lightning-input type="checkbox" label={label.currentTenders}
+                                     checked={isCurrentTenders} onchange={handleCurrentTenderType}></lightning-input>
+                </div>
+                <div class="slds-col">
+                    <lightning-input type="checkbox" label={label.futureTenders}
+                                     checked={isFutureTenders} onchange={handleFutureTenderType}></lightning-input>
+                </div>
+                <div class="slds-col">
+                    <lightning-input type="checkbox" label={label.marketinformation}
+                                     checked={isHistoricTenders} onchange={handleHistoricTenderType}></lightning-input>
+                </div>
+            </div>-->
+
+            <div class="slds-grid slds-gutters slds-m-around--medium">
+                <!--<div class="slds-form_stacked slds-p-around_medium lgc-bg">-->
+                <div class="slds-col">
+                    <lightning-input label={label.searchusing} value={searchTerm1} onchange={changeHandler} type="search">
+                        <lightning-helptext content="The tooltip displays on the lower left of the icon or above the icon if space is available. It automatically adjusts its position according to the viewport."></lightning-helptext>
+                    </lightning-input>
+                </div>
+                <!--</div>-->
+            </div>
+
+            <div class="slds-grid slds-gutters slds-m-around--medium">
+                <div class="slds-col">
+                    <lightning-input label={label.andSearch} value={searchTermAnd} onchange={changeHandlerAnd} type="search" ></lightning-input>
+                </div>
+                <div class="slds-col">
+                    <lightning-input label={label.orSearch} value={searchTermOr} onchange={changeHandlerOr} type="search"></lightning-input>
+                </div>
+                <div class="slds-col">
+                    <lightning-input label={label.notSearch} value={searchTermNot} onchange={changeHandlerNot} type="search"></lightning-input>
+                </div>
+            </div>
+
+            <div class="slds-grid slds-gutters slds-m-around--medium">
+                <div class="slds-col">
+                    <!--<lightning-layout-item class="slds-p-left_xx-small">-->
+                    <!--<lightning-button label="Search for Tenders" onclick={handleSearch} variant="brand" ></lightning-button>
+                    </br>
+                    </br>-->
+                    <lightning-button label={label.search} onclick={handleSearchAnd} variant="brand" ></lightning-button>
+                    <!--</lightning-layout-item>-->
+                </div>
+            </div>
+
+        </div>
+        <!--style="height: 300px;" enable-infinite-loading
+                        load-more-offset=30
+                        onloadmore={loadMoreData}-->
+
+    </lightning-card>
+
+    </br>
+    <template if:true={showTable}>
+        <lightning-card title={label.tenders} icon-name="standard:relationship">
+            <div class="slds-p-around_medium lgc-bg" style="height: 300px;">
+                <lightning-datatable
+                        key-field="id"
+                        data={data}
+                        columns={columns}
+                        hide-checkbox-column="true"
+                        show-row-number-column
+                        is-loading={tableLoadingState}>
+                </lightning-datatable>
+            </div>
+        </lightning-card>
+    </template>
+
+    <template if:false={showTable}>
+        <h1 >{noResults}</h1>
+    </template>
+    </br>
+    <template if:true={showDoc}>
+        <lightning-card title={label.documents} icon-name="doctype:word">
+            <!--<ul class="slds-m-around_medium, slds-list&#45;&#45;dotted">-->
+                <template if:true={showGuestMessage}>
+                    <div class="slds-text-color_error slds-m-around_medium">{label.labelPublicVisitor}</div>
+                </template>
+                <table class="slds-table slds-table_cell-buffer slds-table_bordered">
+                    <thead>
+                    <tr class="slds-line-height_reset">
+                        <th class="slds-cell-wrap" scope="col">
+                            <div class="slds-truncate" title="Tender Name">{label.tenderName}</div>
+                        </th>
+                        <th class="slds-cell-wrap" scope="col">
+                            <div class="slds-truncate" title="Document Name">{label.documentName}</div>
+                        </th>
+                    </tr>
+                    </thead>
+                    <!--<li key={items.id} if:true={items.id}> {items.tenderName} - <a href={items.link} >{items.title} </a></li>-->
+                    <tbody>
+                    <template for:each={results} for:item="items">
+                    <tr class="slds-hint-parent" key={items.id} if:true={items.id}>
+                        <th data-label="Tender Name" scope="row">
+                            <div class="slds-truncate slds-cell-wrap" >{items.tenderName}</div>
+                        </th>
+                        <template if:false={isLoggedInUser}>
+                            <td data-label="Document Name">
+                                <div class="slds-truncate slds-cell-wrap" ><a href='' onclick={showAccessMessage}>{items.title} </a></div>
+                            </td>
+                        </template>
+                        <template if:true={isLoggedInUser}>
+                            <td data-label="Document Name">
+                                <div class="slds-truncate slds-cell-wrap" ><a href={items.link} >{items.title} </a></div>
+                            </td>
+                        </template>
+                    </tr>
+                    </template>
+                    </tbody>
+            <!--</ul>-->
+                </table>
+        </lightning-card>
+    </template>
+
+</template>
