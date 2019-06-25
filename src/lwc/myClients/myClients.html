@@ -1,0 +1,36 @@
+<!--
+ - Created by anshulagrawal on 2019-05-28.
+ -->
+
+<!-- myClients -->
+<template>
+    <div class="datatable">
+        <lightning-card title={label.labelMyClientsTitle}>
+            <template if:false={displayClientData}>
+                <div class="slds-text-color_error slds-m-around_medium">{label.labelNoData}</div>
+            </template>
+            <template if:true={error}>
+                <div class="slds-text-color_error slds-m-around_medium">{label.labelError}</div>
+            </template>
+            <template if:true={displayClientData}>
+                <div class="slds-p-around_medium lgc-bg" style="height: 300px;">
+                    <lightning-datatable
+                            class="myClient"
+                            key-field="id"
+                            data={myClientData}
+                            columns={columns}
+                            hide-checkbox-column="true">
+                        <!--
+                        onsort={updateColumnSorting}
+                            sorted-by={sortedBy}
+                            sorted-direction={sortedDirection}
+                        -->
+                    </lightning-datatable>
+                </div>
+            </template>
+            <template if:true={loading}>
+                <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+            </template>
+        </lightning-card>
+    </div>
+</template>
