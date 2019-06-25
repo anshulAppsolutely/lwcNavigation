@@ -148,6 +148,7 @@ export default class Mapnewclientlocations extends LightningElement {
         console.log('start date'+this.startDate);
         console.log('location >>'+this.selectedLocation);
         console.log('checking mapped val');
+        var self = this;
         const selectedObject = this.mappedlocations.filter(mappedLocation => mappedLocation.locationId === this.selectedLocation);
         /*let selectedObject  = this.mappedlocations.find(function(element){
             return element.locationId === event.target.value;
@@ -241,7 +242,7 @@ export default class Mapnewclientlocations extends LightningElement {
                         .then((clientLocation) => {
                         console.log('only sub client location created >'+clientLocation.id);
                         counter++;
-
+                        if(selectedRowsSize ==  counter ) resolve();
                     }).catch(error => {
                             this.dispatchEvent(
                                 new ShowToastEvent({
@@ -254,13 +255,13 @@ export default class Mapnewclientlocations extends LightningElement {
                     });
 
                 }
-                if(selectedRowsSize ==  counter ) resolve();
 
             });
 
             promise1.
             then(function () {
                 console.log('Success, You are a GEEK');
+                self.showToast();
             }).
             catch(function () {
                 console.log('Some error has occured while creating Client Locations');
@@ -268,6 +269,15 @@ export default class Mapnewclientlocations extends LightningElement {
 
         }
 
+    }
+
+    showToast(){
+        this.dispatchEvent(
+            new ShowToastEvent({
+                title: 'Location are mapped with Sublocations.',
+                variant: 'success'
+            })
+        );
     }
 
         /*if (!this.startDate || this.startDate.trim().length === 0) {
