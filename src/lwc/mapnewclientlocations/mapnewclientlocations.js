@@ -5,6 +5,7 @@
 import { LightningElement, api, track, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { createRecord } from 'lightning/uiRecordApi';
+import { NavigationMixin } from 'lightning/navigation';
 import CLIENT_LOCATION_OBJECT from '@salesforce/schema/Client_Location_Relationship__c';
 import CLIENT_FIELD from '@salesforce/schema/Client_Location_Relationship__c.Client_PA__c';
 import LOCATION_FIELD from '@salesforce/schema/Client_Location_Relationship__c.Location__c';
@@ -23,8 +24,12 @@ import labelMyLocation from '@salesforce/label/c.labelMyLocation';
 import labelSubLocation from '@salesforce/label/c.labelSubLocation';
 import labelStartDate from '@salesforce/label/c.labelStartDate';
 import labelMyLocationMissing from '@salesforce/label/c.labelMyLocationMissing';
+import labelNoSubLocationSelected from '@salesforce/label/c.labelNoSubLocationSelected';
 
-export default class Mapnewclientlocations extends LightningElement {
+/** The delay used when debouncing event handlers before invoking Apex. */
+const DELAY = 1200;
+
+export default class Mapnewclientlocations extends NavigationMixin(LightningElement) {
 
     @track loading = true;
 
@@ -62,7 +67,8 @@ export default class Mapnewclientlocations extends LightningElement {
         labelMyLocation,
         labelSubLocation,
         labelStartDate,
-        labelMyLocationMissing
+        labelMyLocationMissing,
+        labelNoSubLocationSelected
     };
 
     selectedLocation;
@@ -76,7 +82,7 @@ export default class Mapnewclientlocations extends LightningElement {
      * @param {object} error
      * @param {object} data
      */
-    @wire(getMyLocations, { clientId : '$recordId' })
+@wire(getMyLocations, { clientId : '$recordId' })
     wiredLocationPickList({ error, data }) {
         if (data) {
             console.log('i am in data my record id >>>'+this.recordId);
@@ -113,20 +119,20 @@ export default class Mapnewclientlocations extends LightningElement {
 
         getSubLocations({ parentLocation: this.selectedLocation, clientId: this.recordId })
             .then((result) => {
-                if (result === undefined || result.mySubLocations === undefined || result.mySubLocations.length === 0)
-                {
-                    this.displayNoSubLocationsMsg = true;
-                }else{
-                    this.subLocations = result.mySubLocations;
-                    this.displaySubLocationsData = true;
-                }
-                this.loading = false;
-                console.log('my sub locations >>'+this.subLocations);
-            }).catch((error) => {
-                this.loading = false;
-                this.error = true;
+            if (result === undefined || result.mySubLocations === undefined || result.mySubLocations.length === 0)
+        {
+            this.displayNoSubLocationsMsg = true;
+        }else{
+            this.subLocations = result.mySubLocations;
+            this.displaySubLocationsData = true;
+        }
+        this.loading = false;
+        console.log('my sub locations >>'+this.subLocations);
+    }).catch((error) => {
+            this.loading = false;
+        this.error = true;
 
-            });
+    });
 
     }
 
@@ -155,10 +161,10 @@ export default class Mapnewclientlocations extends LightningElement {
         });*/
         console.log('selectedObject mapped >>>>'+selectedObject);
         const allValid = [...this.template.querySelectorAll("[data-field='input1']")]
-            .reduce((validSoFar, inputCmp) => {
-                inputCmp.reportValidity();
-                return validSoFar && inputCmp.checkValidity();
-            }, true);
+        .reduce((validSoFar, inputCmp) => {
+            inputCmp.reportValidity();
+            return validSoFar && inputCmp.checkValidity();
+        }, true);
 
         if (!allValid) {
             return;
@@ -179,35 +185,50 @@ export default class Mapnewclientlocations extends LightningElement {
             createRecord(recordInput)
                 .then(() => {
                 for (let i = 0; i < this.selectedRows.length; i++){
-                //alert("You selected: " + this.selectedRows[i].locationId);
-                const fields = {};
-                fields[CLIENT_FIELD.fieldApiName] = this.recordId;
-                fields[LOCATION_FIELD.fieldApiName] = this.selectedRows[i].locationId;
-                fields[STARTDATE_FIELD.fieldApiName] = this.startDate;
-                const recordInput = { apiName: CLIENT_LOCATION_OBJECT.objectApiName, fields };
-                createRecord(recordInput)
-                    .then((clientLocation) => {
-                    console.log('client location created >'+clientLocation.id);
-                    counter++;
+                    //alert("You selected: " + this.selectedRows[i].locationId);
+                    const fields = {};
+                    fields[CLIENT_FIELD.fieldApiName] = this.recordId;
+                    fields[LOCATION_FIELD.fieldApiName] = this.selectedRows[i].locationId;
+                    fields[STARTDATE_FIELD.fieldApiName] = this.startDate;
+                    const recordInput = { apiName: CLIENT_LOCATION_OBJECT.objectApiName, fields };
+                    createRecord(recordInput)
+                        .then((clientLocation) => {
+                        console.log('client location created >'+clientLocation.id);
+                        counter++;
 
-                });
-            }
+                    });
+                }
             }).then(() => {
-                    this.dispatchEvent(
-                        new ShowToastEvent({
-                            title: 'Locations are mapped.',
-                            variant: 'success'
-                        }),
-                    );
-            }).catch(error => {
-                    this.dispatchEvent(
-                        new ShowToastEvent({
-                            title: 'Error creating Location',
-                            message: error.body.message,
-                            variant: 'error',
-                        }),
-                    );
-            });
+                /*this.dispatchEvent(
+                    new ShowToastEvent({
+                        title: 'Locations are mapped.',
+                        variant: 'success'
+                    }),
+                );*/
+                /*setTimeout(() => {
+                    this[NavigationMixin.Navigate]({
+                        type: "standard__recordPage",
+                        attributes: {
+                            objectApiName: "Account",
+                            actionName: "view",
+                            recordId: this.recordId,
+                        },
+                    });
+                }, DELAY);*/
+                console.log('i am in second then >>');
+                setTimeout(() => {
+                    this.dispatchEvent(new CustomEvent('locationsaved'));
+                }, DELAY);
+
+        }).catch(error => {
+                this.dispatchEvent(
+                    new ShowToastEvent({
+                        title: this.label.labelError,
+                        message: error.body.message,
+                        variant: 'error',
+                    }),
+                );
+        });
 
 
         }else{
@@ -215,7 +236,7 @@ export default class Mapnewclientlocations extends LightningElement {
             if(this.selectedRows.length == 0){
                 this.dispatchEvent(
                     new ShowToastEvent({
-                        title: 'There are no spaces selected.',
+                        title: this.label.labelNoSubLocationSelected,
                         variant: 'success'
                     }),
                 );
@@ -241,18 +262,18 @@ export default class Mapnewclientlocations extends LightningElement {
                     createRecord(recordInput)
                         .then((clientLocation) => {
                         console.log('only sub client location created >'+clientLocation.id);
-                        counter++;
-                        if(selectedRowsSize ==  counter ) resolve();
-                    }).catch(error => {
-                            this.dispatchEvent(
-                                new ShowToastEvent({
-                                    title: 'Error creating Location',
-                                    message: error.body.message,
-                                    variant: 'error',
-                                }),
-                            );
-                        reject();
-                    });
+                    counter++;
+                    if(selectedRowsSize ==  counter ) resolve();
+                }).catch(error => {
+                        this.dispatchEvent(
+                            new ShowToastEvent({
+                                title: this.label.labelError,
+                                message: error.body.message,
+                                variant: 'error',
+                            }),
+                        );
+                    reject();
+                });
 
                 }
 
@@ -260,8 +281,18 @@ export default class Mapnewclientlocations extends LightningElement {
 
             promise1.
             then(function () {
-                console.log('Success, You are a GEEK');
-                self.showToast();
+                //console.log('Success, You are a GEEK');
+                /*setTimeout(() => {
+                    this[NavigationMixin.Navigate]({
+                        type: "standard__recordPage",
+                        attributes: {
+                            objectApiName: "Account",
+                            actionName: "view",
+                            recordId: this.recordId,
+                        },
+                    });
+            }, DELAY);*/
+                self.dispatchLocationEvent();
             }).
             catch(function () {
                 console.log('Some error has occured while creating Client Locations');
@@ -271,19 +302,15 @@ export default class Mapnewclientlocations extends LightningElement {
 
     }
 
-    showToast(){
-        this.dispatchEvent(
-            new ShowToastEvent({
-                title: 'Location are mapped with Sublocations.',
-                variant: 'success'
-            })
-        );
+    dispatchLocationEvent(){
+        console.log('dispatching event');
+        this.dispatchEvent(new CustomEvent('sublocationsaved'));
     }
 
-        /*if (!this.startDate || this.startDate.trim().length === 0) {
-            this.validity = false;
-            return;
-        }*/
+    /*if (!this.startDate || this.startDate.trim().length === 0) {
+        this.validity = false;
+        return;
+    }*/
 
 
 
