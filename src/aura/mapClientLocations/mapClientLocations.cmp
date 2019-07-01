@@ -1,0 +1,4 @@
+<aura:component implements="flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes" access="global" >
+	<aura:handler event="force:refreshView" action="{!c.isRefreshed}" />
+    <c:mapnewclientlocations recordId="{!v.recordId}" onsublocationsaved="{!c.refreshView}" onlocationsaved="{!c.refreshView}" />
+</aura:component>
